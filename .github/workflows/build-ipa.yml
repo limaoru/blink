@@ -6,13 +6,21 @@ on:
 
 jobs:
   build:
-    runs-on: macos-14
+    runs-on: macos-15
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           submodules: true
+
+      - name: Select Xcode 16
+        run: |
+          XCODE16=$(ls -1d /Applications/Xcode_16*.app 2>/dev/null | tail -1)
+          if [ -n "$XCODE16" ]; then
+            sudo xcode-select -s "$XCODE16/Contents/Developer"
+          fi
+          xcodebuild -version
 
       - name: Cache frameworks
         uses: actions/cache@v4
