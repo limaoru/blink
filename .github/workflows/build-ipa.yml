@@ -22,6 +22,11 @@ jobs:
           fi
           xcodebuild -version
 
+      - name: Install iOS simulator runtime
+        run: |
+          xcodebuild -downloadPlatform iOS
+          xcrun simctl list runtimes
+
       - name: Cache frameworks
         uses: actions/cache@v4
         with:
