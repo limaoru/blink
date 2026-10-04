@@ -1,0 +1,65 @@
+name: Build unsigned IPA (jailbreak)
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-14
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Cache frameworks
+        uses: actions/cache@v4
+        with:
+          path: xcfs/.build
+          key: ${{ runner.os }}-blink-xcfs-${{ hashFiles('get_frameworks.sh', 'xcfs/Package.swift') }}
+
+      - name: Get frameworks
+        run: ./get_frameworks.sh
+
+      - name: Get resources
+        run: ./get_resources.sh
+
+      - name: Setup xcconfig
+        run: cp template_setup.xcconfig developer_setup.xcconfig
+
+      - name: Build unsigned app
+        run: |
+          set -o pipefail
+          xcodebuild build \
+            -project Blink.xcodeproj \
+            -scheme Blink \
+            -sdk iphoneos \
+            -configuration Debug \
+            -derivedDataPath build/DerivedData \
+            IPHONEOS_DEPLOYMENT_TARGET=16.1 \
+            CODE_SIGN_IDENTITY='' \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            ONLY_ACTIVE_ARCH=NO
+
+      - name: Package IPA
+        run: |
+          APP_PATH=$(find build/DerivedData/Build/Products -name "Blink.app" -type d | head -1)
+          if [ -z "$APP_PATH" ]; then
+            echo "::error::Blink.app not found in build products"
+            exit 1
+          fi
+          echo "Found app bundle at: $APP_PATH"
+          mkdir -p Payload
+          cp -R "$APP_PATH" Payload/
+          zip -qr Blink.ipa Payload
+          ls -lh Blink.ipa
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: Blink-unsigned-ipa
+          path: Blink.ipa
+          retention-days: 14
